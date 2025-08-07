@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# mcpm - MCP Configuration Manager
+# mcpctl - MCP Configuration Controller
 # Simple tool to manage MCP server configurations across different clients
 
 set -euo pipefail
@@ -15,10 +15,10 @@ COMMAND=""
 # Usage information
 usage() {
     cat << EOF
-mcpm - MCP Configuration Manager v${VERSION}
+mcpctl - MCP Configuration Controller v${VERSION}
 
 USAGE:
-    mcpm <command> -f <config-file> [-e <env-file>]
+    mcpctl <command> -f <config-file> [-e <env-file>]
 
 COMMANDS:
     apply       Apply configuration to target files
@@ -30,8 +30,8 @@ OPTIONS:
     -h          Show this help message
 
 EXAMPLES:
-    mcpm apply -f mcp.json -e .env
-    mcpm diff -f mcp.json
+    mcpctl apply -f mcp.json -e .env
+    mcpctl diff -f mcp.json
 
 EOF
 }
@@ -113,7 +113,9 @@ parse_args() {
 load_env() {
     if [[ -n "$ENV_FILE" ]]; then
         echo "Loading environment variables from $ENV_FILE"
-        export $(grep -v '^#' "$ENV_FILE" | grep -v '^$' | xargs)
+        set -a
+        source "$ENV_FILE"
+        set +a
     fi
 }
 
@@ -133,6 +135,11 @@ load_config() {
     
     # Get MCP servers configuration
     mcp_servers=$(jq '.mcpServers' "$CONFIG_FILE" 2>/dev/null || error "mcpServers not found in config file")
+    
+    # Check if mcpServers exists and is not null
+    if [[ "$mcp_servers" == "null" || -z "$mcp_servers" ]]; then
+        error "mcpServers not found in config file"
+    fi
     
     # Process environment variable substitution
     mcp_servers_processed=$(echo "$mcp_servers" | envsubst)
@@ -163,9 +170,9 @@ process_target() {
     
     # Generate new configuration (unified logic)
     local existing_config=$(cat "$target_path")
-    local new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
-    
     # Always use temporary file for consistent processing
+    local temp_file=$(mktemp -t mcpctl.XXXXXX)
+    echo "$new_config" > "$temp_file"
     local temp_file=$(mktemp)
     echo "$new_config" > "$temp_file"
     

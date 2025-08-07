@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "mcpServers": {
+    "old-server": {
+      "command": "old-command"
+    }
+  },
+  "otherSettings": {
+    "theme": "dark"
+  }
+}
