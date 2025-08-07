@@ -170,9 +170,9 @@ process_target() {
     
     # Generate new configuration (unified logic)
     local existing_config=$(cat "$target_path")
-    # Always use temporary file for consistent processing
-    local temp_file=$(mktemp -t mcpctl.XXXXXX)
-    echo "$new_config" > "$temp_file"
+    local new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
+
+    # Create temporary file for processing
     local temp_file=$(mktemp)
     echo "$new_config" > "$temp_file"
     

@@ -68,9 +68,9 @@ EOF
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "\\${ROOT}"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "\${ROOT}"],
       "env": {
-        "TOKEN": "\\${TOKEN}"
+        "TOKEN": "\${TOKEN}"
       }
     }
   }
