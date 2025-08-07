@@ -122,10 +122,8 @@ expand_path() {
     echo "${1/#\~/$HOME}"
 }
 
-# Apply configuration command
-cmd_apply() {
-    echo "Applying configuration from $CONFIG_FILE"
-    
+# Load and prepare configuration
+load_config() {
     # Get targets from config file
     targets=$(jq -r '.targets[]? | @json' "$CONFIG_FILE" 2>/dev/null || error "Invalid JSON in config file")
     
@@ -138,27 +136,64 @@ cmd_apply() {
     
     # Process environment variable substitution
     mcp_servers_processed=$(echo "$mcp_servers" | envsubst)
+}
+
+# Process a single target (unified for both diff and apply)
+process_target() {
+    local mode="$1"
+    local target_json="$2"
+    
+    # Parse target information
+    local target_name=$(echo "$target_json" | jq -r '.name')
+    local target_path=$(echo "$target_json" | jq -r '.path')
+    local target_key=$(echo "$target_json" | jq -r '.key // "mcpServers"')
+    target_path=$(expand_path "$target_path")
+    
+    if [[ "$mode" == "diff" ]]; then
+        echo
+        echo "=== Diff for target: $target_name ($target_path, key: $target_key) ==="
+    else
+        echo "Processing target: $target_name (key: $target_key)"
+    fi
+    
+    if [[ ! -f "$target_path" ]]; then
+        warn "Target file $target_path not found, skipping"
+        return
+    fi
+    
+    # Generate new configuration (unified logic)
+    local existing_config=$(cat "$target_path")
+    local new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
+    
+    # Always use temporary file for consistent processing
+    local temp_file=$(mktemp)
+    echo "$new_config" > "$temp_file"
+    
+    case "$mode" in
+        "diff")
+            if diff -u "$target_path" "$temp_file" || true; then
+                echo "No differences found"
+            fi
+            rm "$temp_file"
+            ;;
+        "apply")
+            mv "$temp_file" "$target_path"
+            success "Applied configuration to $target_path"
+            ;;
+        *)
+            error "Invalid mode: $mode"
+            ;;
+    esac
+}
+
+# Apply configuration command
+cmd_apply() {
+    echo "Applying configuration from $CONFIG_FILE"
+    
+    load_config
     
     echo "$targets" | while read -r target_json; do
-        target_name=$(echo "$target_json" | jq -r '.name')
-        target_path=$(echo "$target_json" | jq -r '.path')
-        target_key=$(echo "$target_json" | jq -r '.key // "mcpServers"')
-        target_path=$(expand_path "$target_path")
-        
-        echo "Processing target: $target_name (key: $target_key)"
-        
-        if [[ ! -f "$target_path" ]]; then
-            warn "Target file $target_path not found, skipping"
-            continue
-        fi
-        
-        # Read existing config and merge with new mcpServers using dynamic key
-        existing_config=$(cat "$target_path")
-        new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
-        
-        # Write new configuration
-        echo "$new_config" > "$target_path"
-        success "Applied configuration to $target_path"
+        process_target "apply" "$target_json"
     done
 }
 
@@ -166,46 +201,10 @@ cmd_apply() {
 cmd_diff() {
     echo "Showing differences for configuration in $CONFIG_FILE"
     
-    # Get targets from config file
-    targets=$(jq -r '.targets[]? | @json' "$CONFIG_FILE" 2>/dev/null || error "Invalid JSON in config file")
-    
-    if [[ -z "$targets" ]]; then
-        error "No targets found in configuration file"
-    fi
-    
-    # Get MCP servers configuration
-    mcp_servers=$(jq '.mcpServers' "$CONFIG_FILE" 2>/dev/null || error "mcpServers not found in config file")
-    
-    # Process environment variable substitution
-    mcp_servers_processed=$(echo "$mcp_servers" | envsubst)
+    load_config
     
     echo "$targets" | while read -r target_json; do
-        target_name=$(echo "$target_json" | jq -r '.name')
-        target_path=$(echo "$target_json" | jq -r '.path')
-        target_key=$(echo "$target_json" | jq -r '.key // "mcpServers"')
-        target_path=$(expand_path "$target_path")
-        
-        echo
-        echo "=== Diff for target: $target_name ($target_path, key: $target_key) ==="
-        
-        if [[ ! -f "$target_path" ]]; then
-            warn "Target file $target_path not found, skipping"
-            continue
-        fi
-        
-        # Create temporary file with new configuration
-        temp_file=$(mktemp)
-        existing_config=$(cat "$target_path")
-        new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
-        echo "$new_config" > "$temp_file"
-        
-        # Show diff
-        if diff -u "$target_path" "$temp_file" || true; then
-            echo "No differences found"
-        fi
-        
-        # Cleanup
-        rm "$temp_file"
+        process_target "diff" "$target_json"
     done
 }
 
