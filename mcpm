@@ -1,0 +1,225 @@
+#!/bin/bash
+
+# mcpm - MCP Configuration Manager
+# Simple tool to manage MCP server configurations across different clients
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+# Default values
+CONFIG_FILE=""
+ENV_FILE=""
+COMMAND=""
+
+# Usage information
+usage() {
+    cat << EOF
+mcpm - MCP Configuration Manager v${VERSION}
+
+USAGE:
+    mcpm <command> -f <config-file> [-e <env-file>]
+
+COMMANDS:
+    apply       Apply configuration to target files
+    diff        Show differences between config and target files
+
+OPTIONS:
+    -f <file>   Configuration file (required)
+    -e <file>   Environment variables file (optional)
+    -h          Show this help message
+
+EXAMPLES:
+    mcpm apply -f mcp.json -e .env
+    mcpm diff -f mcp.json
+
+EOF
+}
+
+# Error handling
+error() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# Warning message
+warn() {
+    echo "Warning: $1" >&2
+}
+
+# Success message
+success() {
+    echo "✓ $1"
+}
+
+# Check dependencies
+check_dependencies() {
+    if ! command -v jq &> /dev/null; then
+        error "jq is required but not installed. Please install jq first."
+    fi
+    
+    if ! command -v envsubst &> /dev/null; then
+        error "envsubst is required but not installed. Please install gettext first."
+    fi
+}
+
+# Parse command line arguments
+parse_args() {
+    if [[ $# -eq 0 ]]; then
+        usage
+        exit 1
+    fi
+    
+    # Handle help as first argument
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+    
+    COMMAND="$1"
+    shift
+    
+    while getopts "f:e:h" opt; do
+        case $opt in
+            f) CONFIG_FILE="$OPTARG" ;;
+            e) ENV_FILE="$OPTARG" ;;
+            h) usage; exit 0 ;;
+            \?) error "Invalid option: -$OPTARG" ;;
+            :) error "Option -$OPTARG requires an argument" ;;
+        esac
+    done
+    
+    # Validate command
+    case "$COMMAND" in
+        apply|diff) ;;
+        *) error "Invalid command: $COMMAND" ;;
+    esac
+    
+    # Validate required arguments
+    if [[ -z "$CONFIG_FILE" ]]; then
+        error "Configuration file (-f) is required"
+    fi
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        error "Configuration file '$CONFIG_FILE' not found"
+    fi
+    
+    if [[ -n "$ENV_FILE" && ! -f "$ENV_FILE" ]]; then
+        error "Environment file '$ENV_FILE' not found"
+    fi
+}
+
+# Load environment variables from .env file
+load_env() {
+    if [[ -n "$ENV_FILE" ]]; then
+        echo "Loading environment variables from $ENV_FILE"
+        export $(grep -v '^#' "$ENV_FILE" | grep -v '^$' | xargs)
+    fi
+}
+
+# Expand tilde in path
+expand_path() {
+    echo "${1/#\~/$HOME}"
+}
+
+# Apply configuration command
+cmd_apply() {
+    echo "Applying configuration from $CONFIG_FILE"
+    
+    # Get targets from config file
+    targets=$(jq -r '.targets[]? | @json' "$CONFIG_FILE" 2>/dev/null || error "Invalid JSON in config file")
+    
+    if [[ -z "$targets" ]]; then
+        error "No targets found in configuration file"
+    fi
+    
+    # Get MCP servers configuration
+    mcp_servers=$(jq '.mcpServers' "$CONFIG_FILE" 2>/dev/null || error "mcpServers not found in config file")
+    
+    # Process environment variable substitution
+    mcp_servers_processed=$(echo "$mcp_servers" | envsubst)
+    
+    echo "$targets" | while read -r target_json; do
+        target_name=$(echo "$target_json" | jq -r '.name')
+        target_path=$(echo "$target_json" | jq -r '.path')
+        target_key=$(echo "$target_json" | jq -r '.key // "mcpServers"')
+        target_path=$(expand_path "$target_path")
+        
+        echo "Processing target: $target_name (key: $target_key)"
+        
+        if [[ ! -f "$target_path" ]]; then
+            warn "Target file $target_path not found, skipping"
+            continue
+        fi
+        
+        # Read existing config and merge with new mcpServers using dynamic key
+        existing_config=$(cat "$target_path")
+        new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
+        
+        # Write new configuration
+        echo "$new_config" > "$target_path"
+        success "Applied configuration to $target_path"
+    done
+}
+
+# Diff configuration command
+cmd_diff() {
+    echo "Showing differences for configuration in $CONFIG_FILE"
+    
+    # Get targets from config file
+    targets=$(jq -r '.targets[]? | @json' "$CONFIG_FILE" 2>/dev/null || error "Invalid JSON in config file")
+    
+    if [[ -z "$targets" ]]; then
+        error "No targets found in configuration file"
+    fi
+    
+    # Get MCP servers configuration
+    mcp_servers=$(jq '.mcpServers' "$CONFIG_FILE" 2>/dev/null || error "mcpServers not found in config file")
+    
+    # Process environment variable substitution
+    mcp_servers_processed=$(echo "$mcp_servers" | envsubst)
+    
+    echo "$targets" | while read -r target_json; do
+        target_name=$(echo "$target_json" | jq -r '.name')
+        target_path=$(echo "$target_json" | jq -r '.path')
+        target_key=$(echo "$target_json" | jq -r '.key // "mcpServers"')
+        target_path=$(expand_path "$target_path")
+        
+        echo
+        echo "=== Diff for target: $target_name ($target_path, key: $target_key) ==="
+        
+        if [[ ! -f "$target_path" ]]; then
+            warn "Target file $target_path not found, skipping"
+            continue
+        fi
+        
+        # Create temporary file with new configuration
+        temp_file=$(mktemp)
+        existing_config=$(cat "$target_path")
+        new_config=$(echo "$existing_config" | jq --argjson servers "$mcp_servers_processed" --arg key "$target_key" '.[$key] = $servers')
+        echo "$new_config" > "$temp_file"
+        
+        # Show diff
+        if diff -u "$target_path" "$temp_file" || true; then
+            echo "No differences found"
+        fi
+        
+        # Cleanup
+        rm "$temp_file"
+    done
+}
+
+# Main function
+main() {
+    parse_args "$@"
+    check_dependencies
+    load_env
+    
+    case "$COMMAND" in
+        apply) cmd_apply ;;
+        diff) cmd_diff ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
