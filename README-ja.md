@@ -1,9 +1,5 @@
 # mcpctl - MCP設定コントローラー
 
-[![Tests](https://img.shields.io/badge/tests-passing-green)](./tests/)
-[![Shell](https://img.shields.io/badge/shell-bash-blue)](./mcpctl)
-[![License](https://img.shields.io/badge/license-MIT-blue)](#ライセンス)
-
 **[English README is here](./README.md)**
 
 Claude CodeやGitHub Copilotなど、異なるAIクライアント間でMCP（Model Context Protocol）サーバー設定を管理するためのシンプルで強力なツールです。
