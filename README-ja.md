@@ -16,7 +16,6 @@ Claude CodeやGitHub Copilotなど、異なるAIクライアント間でMCP（Mo
   - **置換モード**（デフォルト）: 既存のサーバー設定を完全に置き換え
   - **マージモード**: 既存サーバーを保持しつつ新しいサーバーを追加
 - **環境変数サポート**: 環境変数置換による機密データの安全な管理
-- **クロスプラットフォーム**: macOS、Linux、Windows（WSL/Git Bash経由）で動作
 - **変更プレビュー**: 適用前にdiffコマンドで変更内容を確認
 
 ## クイックスタート
@@ -25,13 +24,7 @@ Claude CodeやGitHub Copilotなど、異なるAIクライアント間でMCP（Mo
 
 1. **前提条件**: 必要なツールをインストール
    ```bash
-   # macOS
    brew install jq gettext
-   
-   # Ubuntu/Debian
-   apt-get install jq gettext-base
-   
-   # その他のシステム: jqとenvsubstをインストール
    ```
 
 2. **mcpctlをダウンロード**
@@ -273,54 +266,3 @@ mcpctl diff -f personal-servers.json --merge
 }
 ```
 
-### 開発ワークフロー
-```bash
-# 1. チーム用ベース設定を作成
-mcpctl apply -f base-config.json
-
-# 2. プロジェクト固有のサーバーを追加
-mcpctl apply -f project-servers.json --merge
-
-# 3. 個人の開発用サーバーを追加
-mcpctl apply -f dev-servers.json --merge
-
-# 4. 最終的な設定を確認
-mcpctl diff -f complete-config.json
-```
-
-## テスト
-
-機能を検証するためにテストスイートを実行:
-
-```bash
-# テスト用にbats-coreをインストール
-brew install bats-core  # macOS
-apt-get install bats    # Ubuntu
-
-# 全テストを実行
-./tests/run_tests.sh
-
-# 特定のテストスイートを実行
-bats tests/test_basic.bats
-bats tests/test_apply.bats
-bats tests/test_merge.bats
-```
-
-## 貢献
-
-1. リポジトリをフォーク
-2. フィーチャーブランチを作成
-3. 変更を実装
-4. 新機能にテストを追加
-5. 全テストが通ることを確認: `./tests/run_tests.sh`
-6. プルリクエストを送信
-
-## ライセンス
-
-MITライセンス - 詳細はLICENSEファイルを参照してください。
-
-## サポート
-
-- **課題報告**: [GitHub Issues](https://github.com/zukash/mcpctl/issues)でバグや機能要望を報告
-- **開発者向けドキュメント**: [CLAUDE.md](./CLAUDE.md)を参照
-- **設定例**: [example/](./example/)ディレクトリでサンプル設定を確認

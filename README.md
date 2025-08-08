@@ -16,7 +16,6 @@ A simple and powerful tool to manage MCP (Model Context Protocol) server configu
   - **Replace Mode** (default): Completely replace existing server configurations
   - **Merge Mode**: Preserve existing servers while adding new ones
 - **Environment Variables**: Support for sensitive data through environment variable substitution
-- **Cross-Platform**: Works on macOS, Linux, and Windows (via WSL/Git Bash)
 - **Preview Changes**: See what will change before applying with diff command
 
 ## Quick Start
@@ -25,13 +24,7 @@ A simple and powerful tool to manage MCP (Model Context Protocol) server configu
 
 1. **Prerequisites**: Install required tools
    ```bash
-   # macOS
    brew install jq gettext
-   
-   # Ubuntu/Debian
-   apt-get install jq gettext-base
-   
-   # Other systems: Install jq and envsubst
    ```
 
 2. **Download mcpctl**
@@ -273,54 +266,3 @@ mcpctl diff -f personal-servers.json --merge
 }
 ```
 
-### Development Workflow
-```bash
-# 1. Create base configuration for team
-mcpctl apply -f base-config.json
-
-# 2. Add project-specific servers
-mcpctl apply -f project-servers.json --merge
-
-# 3. Add personal development servers
-mcpctl apply -f dev-servers.json --merge
-
-# 4. Check final configuration
-mcpctl diff -f complete-config.json
-```
-
-## Testing
-
-Run the test suite to verify functionality:
-
-```bash
-# Install bats-core for testing
-brew install bats-core  # macOS
-apt-get install bats    # Ubuntu
-
-# Run all tests
-./tests/run_tests.sh
-
-# Run specific test suites
-bats tests/test_basic.bats
-bats tests/test_apply.bats
-bats tests/test_merge.bats
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass: `./tests/run_tests.sh`
-6. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Support
-
-- **Issues**: Report bugs and feature requests on [GitHub Issues](https://github.com/zukash/mcpctl/issues)
-- **Documentation**: See [CLAUDE.md](./CLAUDE.md) for developer documentation
-- **Examples**: Check the [example/](./example/) directory for sample configurations

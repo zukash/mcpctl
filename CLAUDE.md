@@ -116,9 +116,9 @@ Merges new servers with existing ones. Existing servers are preserved, and dupli
 - [ ] Add new command examples to both README files
 - [ ] Update feature lists if new functionality is added
 - [ ] Modify configuration examples if format changes
-- [ ] Add/update test instructions if new test files are created
 - [ ] Ensure cross-links between README.md and README-ja.md remain valid
 - [ ] Update version numbers or badges if applicable
+- [ ] Keep README content focused on end-user usage (no developer/testing sections)
 
 ### When to Update
 - Adding new CLI options or commands
