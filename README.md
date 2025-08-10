@@ -18,15 +18,18 @@ A simple and powerful tool to manage MCP (Model Context Protocol) server configu
 
 ### Installation
 
-1. **Prerequisites**: Install required tools
+1. **Install dependencies**:
    ```bash
    brew install jq gettext
    ```
 
-2. **Download mcpctl**
+2. **Download mcpctl**:
    ```bash
    curl -O https://raw.githubusercontent.com/zukash/mcpctl/main/mcpctl
    chmod +x mcpctl
+   
+   # Example: Install to /usr/local/bin
+   mv mcpctl /usr/local/bin/
    ```
 
 ### Basic Usage

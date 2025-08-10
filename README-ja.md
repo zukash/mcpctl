@@ -18,15 +18,18 @@ Claude CodeやGitHub Copilotなど、異なるAIクライアント間でMCP（Mo
 
 ### インストール
 
-1. **前提条件**: 必要なツールをインストール
+1. **依存関係をインストール**:
    ```bash
    brew install jq gettext
    ```
 
-2. **mcpctlをダウンロード**
+2. **mcpctlをダウンロード**:
    ```bash
    curl -O https://raw.githubusercontent.com/zukash/mcpctl/main/mcpctl
    chmod +x mcpctl
+   
+   # 例: /usr/local/binにインストール
+   mv mcpctl /usr/local/bin/
    ```
 
 ### 基本的な使用方法
